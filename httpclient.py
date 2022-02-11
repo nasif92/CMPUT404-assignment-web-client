@@ -24,6 +24,7 @@ import socket
 import re
 # you may use urllib to encode data appropriately
 from urllib.parse import urlparse
+import urllib.parse
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
@@ -38,6 +39,7 @@ class HTTPClient(object):
     def get_url_info(self, url):
         """
         " method to parse the url and get info out of it
+        " returns the path, port and host
         " from https://docs.python.org/3/library/urllib.parse.html
         """
         self.parsed_url = urlparse(url)
@@ -51,6 +53,8 @@ class HTTPClient(object):
             self.url_path = self.parsed_url.path
         self.url_port = self.parsed_url.port
         self.host_name = self.parsed_url.hostname
+        
+        return self.url_path, self.url_port, self.host_name
 
     def generate_request(self, command,  args = None):
         """
@@ -59,11 +63,12 @@ class HTTPClient(object):
 
         # method type either GET or POST
         host = f"Host: {self.host_name}\r\n"
-        content = ''
+        content = ""
 
         # in either case if there are args
         if args != None:
-            content = urlparse.urlencode(args)
+            content = urllib.parse.urlencode(args)
+            print("Content found: ", content)
 
         if command == "GET":
             return(
@@ -98,17 +103,17 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        parsed_data = data.split("\r\n\r\n")[0]
-        code = int(parsed_data[0].split('\r\n')[0].split()[1])
-        return code
+        status_line = data.split("\r\n")[0]
+        code = status_line.split(" ")[1]
+        return int(code)
 
     def get_headers(self,data):
-        parsed_data = data.split("\r\n\r\n")[0]
+        parsed_data = data.split("\r\n\r\n")
         headers = parsed_data[0]
         return headers
 
     def get_body(self, data):
-        parsed_data = data.split("\r\n\r\n")[0]
+        parsed_data = data.split("\r\n\r\n")
         body = parsed_data[1]
         return body
     
@@ -133,12 +138,37 @@ class HTTPClient(object):
     def GET(self, url, args=None):
 
         # parse and get info from url input
-        self.get_url_info(url) 
+        path, port, host = self.get_url_info(url) 
+        print("URL info sent", path, port, host)
         
         # connect to url to through socket connection
-        self.connect(self.host_name, self.url_port)
+        self.connect(host, port)
 
         response_data = self.generate_request("GET", args)
+
+        self.sendall(response_data)
+        data = self.recvall(self.socket)
+        print("data recceived:", data)
+        print("END")
+        self.close()
+
+        # stdout       
+        code = self.get_code(data)
+        body = self.get_body(data)
+
+        print("Response code for GET:", code)
+        print("Response body:", body)
+        return HTTPResponse(code, body)
+
+    def POST(self, url, args=None):
+        # parse and get info from url input
+        path, port, host = self.get_url_info(url) 
+        print("URL info sent", path, port, host) 
+        
+        # connect to url to through socket connection
+        self.connect(host, port)
+
+        response_data = self.generate_request("POST", args)
         self.sendall(response_data)
         data = self.recvall(self.socket)
         self.close()
@@ -146,13 +176,9 @@ class HTTPClient(object):
         # stdout       
         code = self.get_code(data)
         body = self.get_body(data)
-        print("Response code for GET:", code)
-        print("Response body:", body)
-        return HTTPResponse(code, body)
 
-    def POST(self, url, args=None):
-        code = 500
-        body = ""
+        print("Response code for POST:", code)
+        print("Response body:", body)
         return HTTPResponse(code, body)
             
     def command(self, url, command="GET", args=None):
