@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # Copyright 2016 Abram Hindle, https://github.com/tywtyw2002, and https://github.com/treedust
-# 
+# Copyright 2022 Nasif Hossain
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +23,7 @@ import sys
 import socket
 import re
 # you may use urllib to encode data appropriately
-import urllib.parse
+from urllib.parse import urlparse
 
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
@@ -33,7 +34,29 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+   
+    def get_url_info(self, url):
+        """
+        " method to parse the url and get info out of it
+        " from https://docs.python.org/3/library/urllib.parse.html
+        """
+        parsed_url = urlparse(url)
+
+        # variables for storing url components
+        self.url_path = ""
+        self.url_port = 80
+        self.host_name = ""
+
+        if parsed_url.path != "":
+            self.url_path = parsed_url.path
+        self.url_port = parsed_url.port
+        self.host_name = parsed_url.hostname
+
+    def generate_Header(self, command, body, host):
+        
+        header = {
+            ""
+        }
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -76,12 +99,40 @@ class HTTPClient(object):
         code = 500
         body = ""
         return HTTPResponse(code, body)
-
+            
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
+
+    def get_response(self,url, command, args = None):
+        # if GET request type
+        if (command == "GET"):
+            return (
+                f'GET {url.get("path")} HTTP/1.1\r\n'
+                f'Host: {url.get("host")}\r\n'
+                'Connection: close\r\n'
+                'Accept: */*\r\n\r\n'
+            )
+        # if POST type
+        elif (command == "POST"):
+            content = ''
+            if (args):
+                for (key, value) in args.items():
+                    content += f"{key}={value}&"
+                # remove the last '&' character
+                content = content[:-1]
+
+            return (
+                f'POST {url.get("path")} HTTP/1.1\r\n'
+                f'Host: {url.get("host")}\r\n'
+                'Connection: close\r\n'
+                'Content-Type: application/x-www-form-urlencoded\r\n'
+                f'Content-Length: {len(content)}\r\n\r\n'
+                f'{content}\r\n\r\n'
+            )
+
     
 if __name__ == "__main__":
     client = HTTPClient()
