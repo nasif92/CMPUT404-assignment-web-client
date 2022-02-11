@@ -40,23 +40,57 @@ class HTTPClient(object):
         " method to parse the url and get info out of it
         " from https://docs.python.org/3/library/urllib.parse.html
         """
-        parsed_url = urlparse(url)
+        self.parsed_url = urlparse(url)
 
         # variables for storing url components
         self.url_path = ""
         self.url_port = 80
         self.host_name = ""
 
-        if parsed_url.path != "":
-            self.url_path = parsed_url.path
-        self.url_port = parsed_url.port
-        self.host_name = parsed_url.hostname
+        if self.parsed_url.path != "":
+            self.url_path = self.parsed_url.path
+        self.url_port = self.parsed_url.port
+        self.host_name = self.parsed_url.hostname
 
-    def generate_Header(self, command, body, host):
+    def generate_request(self, command,  args = None):
+        """
+        "  function to return request from given url inputs
+        """
+
+        # method type either GET or POST
+        host = f"Host: {self.host_name}\r\n"
+        content = ''
+
+        # in either case if there are args
+        if args != None:
+            content = urlparse.urlencode(args)
+
+        if command == "GET":
+            return(
+                f"{command} {self.url_path} HTTP/1.1\r\n"
+                f"Host: {host}\r\n"
+                "Connection: close\r\n"
+                "User-Agent: nasif/1.0.1\r\n"
+                "Content-Type: application/x-www-form-urlencoded\r\n"  
+                f'Content-Length: {len(content)}\r\n\r\n'    
+            )
         
-        header = {
-            ""
-        }
+        # POST
+        elif command == "POST":
+            content = content[:-1]
+            return(
+                f"{command} {self.url_path} HTTP/1.1\r\n"
+                f"Host: {host}\r\n"
+                "Connection: close\r\n"
+                "User-Agent: nasif/1.0.1\r\n"
+                "Content-Type: application/x-www-form-urlencoded\r\n"  
+                f'Content-Length: {len(content)}\r\n\r\n' 
+                f'{content}\r\n\r\n'
+            )
+        
+    def generate_Header(self, data):
+        header = data.split("\r\n\r\n")[0]
+        return header[0], header[1]
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -64,13 +98,19 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        parsed_data = data.split("\r\n\r\n")[0]
+        code = int(parsed_data[0].split('\r\n')[0].split()[1])
+        return code
 
     def get_headers(self,data):
-        return None
+        parsed_data = data.split("\r\n\r\n")[0]
+        headers = parsed_data[0]
+        return headers
 
     def get_body(self, data):
-        return None
+        parsed_data = data.split("\r\n\r\n")[0]
+        body = parsed_data[1]
+        return body
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -91,8 +131,23 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+
+        # parse and get info from url input
+        self.get_url_info(url) 
+        
+        # connect to url to through socket connection
+        self.connect(self.host_name, self.url_port)
+
+        response_data = self.generate_request("GET", args)
+        self.sendall(response_data)
+        data = self.recvall(self.socket)
+        self.close()
+
+        # stdout       
+        code = self.get_code(data)
+        body = self.get_body(data)
+        print("Response code for GET:", code)
+        print("Response body:", body)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
@@ -105,33 +160,6 @@ class HTTPClient(object):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
-
-    def get_response(self,url, command, args = None):
-        # if GET request type
-        if (command == "GET"):
-            return (
-                f'GET {url.get("path")} HTTP/1.1\r\n'
-                f'Host: {url.get("host")}\r\n'
-                'Connection: close\r\n'
-                'Accept: */*\r\n\r\n'
-            )
-        # if POST type
-        elif (command == "POST"):
-            content = ''
-            if (args):
-                for (key, value) in args.items():
-                    content += f"{key}={value}&"
-                # remove the last '&' character
-                content = content[:-1]
-
-            return (
-                f'POST {url.get("path")} HTTP/1.1\r\n'
-                f'Host: {url.get("host")}\r\n'
-                'Connection: close\r\n'
-                'Content-Type: application/x-www-form-urlencoded\r\n'
-                f'Content-Length: {len(content)}\r\n\r\n'
-                f'{content}\r\n\r\n'
-            )
 
     
 if __name__ == "__main__":
