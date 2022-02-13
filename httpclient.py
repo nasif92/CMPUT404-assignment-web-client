@@ -35,45 +35,34 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-   
-    def get_url_info(self, url):
+
+    def generate_url_info(self, url):
         """
         " method to parse the url and get info out of it
         " returns the path, port and host
-        " from https://docs.python.org/3/library/urllib.parse.html
         """
-        self.parsed_url = urlparse(url)
-
-        # variables for storing url components
-        self.url_path = ""
-        self.url_port = 80
-        self.host_name = ""
-
-        if self.parsed_url.path != "":
-            self.url_path = self.parsed_url.path
-        self.url_port = self.parsed_url.port
+        self.parsed_url = urlparse(url)        
         self.host_name = self.parsed_url.hostname
-        
-        return self.url_path, self.url_port, self.host_name
+        self.url_path = self.parsed_url.path if self.parsed_url.path != '' else '/'
+        self.url_port = self.parsed_url.port if self.parsed_url.port else 80
 
     def generate_request(self, command,  args = None):
         """
         "  function to return request from given url inputs
         """
-
         # method type either GET or POST
-        host = f"Host: {self.host_name}\r\n"
         content = ""
 
-        # in either case if there are args
+        # # in either case if there are args
         if args != None:
-            content = urllib.parse.urlencode(args)
-            print("Content found: ", content)
+            for (key, value) in args.items():
+                    content += f"{key}={value}&"
+            content = content[:-1]
 
         if command == "GET":
             return(
-                f"{command} {self.url_path} HTTP/1.1\r\n"
-                f"Host: {host}\r\n"
+                f'GET {self.url_path} HTTP/1.1\r\n'
+                f'Host: {self.host_name}\r\n'
                 "Connection: close\r\n"
                 "User-Agent: nasif/1.0.1\r\n"
                 "Content-Type: application/x-www-form-urlencoded\r\n"  
@@ -82,10 +71,9 @@ class HTTPClient(object):
         
         # POST
         elif command == "POST":
-            content = content[:-1]
             return(
-                f"{command} {self.url_path} HTTP/1.1\r\n"
-                f"Host: {host}\r\n"
+                f'POST {self.url_path} HTTP/1.1\r\n'
+                f'Host: {self.host_name}\r\n'
                 "Connection: close\r\n"
                 "User-Agent: nasif/1.0.1\r\n"
                 "Content-Type: application/x-www-form-urlencoded\r\n"  
@@ -103,9 +91,9 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        status_line = data.split("\r\n")[0]
-        code = status_line.split(" ")[1]
-        return int(code)
+        parse_data = data.split("\r\n\r\n")
+        code = int(parse_data[0].split('\r\n')[0].split()[1])
+        return code
 
     def get_headers(self,data):
         parsed_data = data.split("\r\n\r\n")
@@ -137,19 +125,16 @@ class HTTPClient(object):
 
     def GET(self, url, args=None):
 
-        # parse and get info from url input
-        path, port, host = self.get_url_info(url) 
-        print("URL info sent", path, port, host)
-        
+        # parse and generate info from url input
+        self.generate_url_info(url) 
+
         # connect to url to through socket connection
-        self.connect(host, port)
+        self.connect(self.host_name, self.url_port)
 
-        response_data = self.generate_request("GET", args)
-
+        response_data = self.generate_request( "GET", args)
+       
         self.sendall(response_data)
         data = self.recvall(self.socket)
-        print("data recceived:", data)
-        print("END")
         self.close()
 
         # stdout       
@@ -161,14 +146,13 @@ class HTTPClient(object):
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        # parse and get info from url input
-        path, port, host = self.get_url_info(url) 
-        print("URL info sent", path, port, host) 
+        # parse and generate info from url input
+        self.generate_url_info(url) 
         
         # connect to url to through socket connection
-        self.connect(host, port)
+        self.connect(self.host_name, self.url_port)
 
-        response_data = self.generate_request("POST", args)
+        response_data = self.generate_request( "POST", args)
         self.sendall(response_data)
         data = self.recvall(self.socket)
         self.close()
