@@ -43,43 +43,35 @@ class HTTPClient(object):
         """
         self.parsed_url = urlparse(url)        
         self.host_name = self.parsed_url.hostname
-        self.url_path = self.parsed_url.path if self.parsed_url.path != '' else '/'
+        self.url_path = self.parsed_url.path if self.parsed_url.path != "" else "/"
         self.url_port = self.parsed_url.port if self.parsed_url.port else 80
 
     def generate_request(self, command,  args = None):
         """
         "  function to return request from given url inputs
         """
-        # method type either GET or POST
-        content = ""
-
         # # in either case if there are args
         if args != None:
-            for (key, value) in args.items():
-                    content += f"{key}={value}&"
-            content = content[:-1]
+            content = urllib.parse.urlencode(args)
+        else:
+            content = ""
 
+        header = [f'{command} {self.url_path} HTTP/1.1\r\n',
+                f'Host: {self.host_name}\r\n',
+                "Connection: close\r\n",
+                "User-Agent: nasif/1.0.1\r\n",
+                "Content-Type: application/x-www-form-urlencoded\r\n",  
+                f"Content-Length: {len(content)}\r\n\r\n"]
+
+        # self.get_req_type(command, content)
         if command == "GET":
-            return(
-                f'GET {self.url_path} HTTP/1.1\r\n'
-                f'Host: {self.host_name}\r\n'
-                "Connection: close\r\n"
-                "User-Agent: nasif/1.0.1\r\n"
-                "Content-Type: application/x-www-form-urlencoded\r\n"  
-                f'Content-Length: {len(content)}\r\n\r\n'    
-            )
+            return "".join(header)
         
         # POST
         elif command == "POST":
-            return(
-                f'POST {self.url_path} HTTP/1.1\r\n'
-                f'Host: {self.host_name}\r\n'
-                "Connection: close\r\n"
-                "User-Agent: nasif/1.0.1\r\n"
-                "Content-Type: application/x-www-form-urlencoded\r\n"  
-                f'Content-Length: {len(content)}\r\n\r\n' 
-                f'{content}\r\n\r\n'
-            )
+            header.append(f"{content}\r\n\r\n")
+            return "".join(header)
+
         
     def generate_Header(self, data):
         header = data.split("\r\n\r\n")[0]
