@@ -20,5 +20,6 @@ compatible) http://docs.python.org/2/library/socketserver.html
 
 References
 ==========
-https://docs.python.org/3/library/urllib.parse.html
+* https://docs.python.org/3/library/urllib.parse.html for urllib documentation
+* https://stackoverflow.com/questions/5607551/how-to-urlencode-a-querystring-in-python for urlencode
 

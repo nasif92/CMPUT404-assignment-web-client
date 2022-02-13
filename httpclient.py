@@ -39,16 +39,18 @@ class HTTPClient(object):
     def generate_url_info(self, url):
         """
         " method to parse the url and get info out of it
-        " returns the path, port and host
+        " store the path, port and host in the instance vars
         """
         self.parsed_url = urlparse(url)        
         self.host_name = self.parsed_url.hostname
         self.url_path = self.parsed_url.path if self.parsed_url.path != "" else "/"
+        if self.parsed_url.query:
+            self.url_path += "?" + self.parsed_url.query
         self.url_port = self.parsed_url.port if self.parsed_url.port else 80
-
+        
     def generate_request(self, command,  args = None):
         """
-        "  function to return request from given url inputs
+        "  function to return request from given url inputs for specific GET/POST requests
         """
         # # in either case if there are args
         if args != None:
@@ -73,7 +75,10 @@ class HTTPClient(object):
             return "".join(header)
 
         
-    def generate_Header(self, data):
+    def generate_header(self, data):
+        """
+        " Funtion to separate header from data
+        """
         header = data.split("\r\n\r\n")[0]
         return header[0], header[1]
 
@@ -86,11 +91,6 @@ class HTTPClient(object):
         parse_data = data.split("\r\n\r\n")
         code = int(parse_data[0].split('\r\n')[0].split()[1])
         return code
-
-    def get_headers(self,data):
-        parsed_data = data.split("\r\n\r\n")
-        headers = parsed_data[0]
-        return headers
 
     def get_body(self, data):
         parsed_data = data.split("\r\n\r\n")
@@ -128,13 +128,14 @@ class HTTPClient(object):
         self.sendall(response_data)
         data = self.recvall(self.socket)
         self.close()
-
-        # stdout       
         code = self.get_code(data)
         body = self.get_body(data)
 
-        print("Response code for GET:", code)
-        print("Response body:", body)
+        # stdout
+        print("Response for GET on:", url, "\nCode:", code)
+        print("Response body:\n" + body)
+
+        # returning as HTTPResponse objects 
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
@@ -148,13 +149,14 @@ class HTTPClient(object):
         self.sendall(response_data)
         data = self.recvall(self.socket)
         self.close()
-
-        # stdout       
         code = self.get_code(data)
         body = self.get_body(data)
 
-        print("Response code for POST:", code)
-        print("Response body:", body)
+        # stdout       
+        print("Response for POST on:", url, "\nCode:", code)
+        print("Response body:\n" + body)
+        
+        # returning as HTTPResponse objects 
         return HTTPResponse(code, body)
             
     def command(self, url, command="GET", args=None):
